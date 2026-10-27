@@ -217,8 +217,21 @@
         this.renderer.draw(this, dt);
         this.ui.update();
         if (this.settings.autosave > 0 && performance.now() - this.lastSave > this.settings.autosave * 1000) this.saveWorld(false);
-        if (performance.now() - this.lastAchCheck > 2000) { this.lastAchCheck = performance.now(); this.checkAchievements(); }
+        if (performance.now() - this.lastAchCheck > 2000) { this.lastAchCheck = performance.now(); this.checkAchievements(); this.updateAmbience(); }
       }
+    }
+    updateAmbience() {
+      const w = this.world, au = MB.audio;
+      if (!au.ctx || !w) return;
+      if (!this.settings.music || this.settings.muted) { if (au.amb) au.stopAmbient(); return; }
+      if (!au.amb) au.startAmbient();
+      let wars = 0, monsters = 0;
+      for (const c of w.civs) if (c.alive) wars += Object.keys(c.wars).length;
+      const r = this.renderer, v = r.visible || { tx0: 0, ty0: 0, tx1: w.w, ty1: w.h };
+      w.near((v.tx0 + v.tx1) / 2, (v.ty0 + v.ty1) / 2, Math.max(v.tx1 - v.tx0, v.ty1 - v.ty0) / 2, (e) => { if (e.kind === 'monster') monsters++; return monsters > 5; });
+      const mood = w.flags.chaosMode && monsters > 5 ? 'doom' : monsters > 5 ? 'war' : wars > 2 ? 'war' : w.flags.iceAge ? 'ice' : w.daylight() < 0.3 ? 'night' : (w.weather.type === 'clear' && w.civs.some((c) => c.alive && c.goldenAge)) ? 'joy' : 'day';
+      au.setMood(mood);
+      au.setRain(w.weather.type === 'rain' || w.weather.type === 'storm' || w.weather.type === 'acid' || w.weather.type === 'monsoon');
     }
     chaosTick() {
       const w = this.world;

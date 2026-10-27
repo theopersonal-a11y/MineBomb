@@ -117,7 +117,8 @@
       const item = U.el('div', { class: 'feed-item ' + ev.kind, text: ev.text });
       if (ev.x != null) item.onclick = () => { this.g.renderer.follow = null; this.g.renderer.centerOn(ev.x + 0.5, ev.y + 0.5); };
       f.insertBefore(item, f.firstChild);
-      while (f.children.length > 8) f.removeChild(f.lastChild);
+      const maxFeed = window.innerWidth < 780 ? 3 : 8;
+      while (f.children.length > maxFeed) f.removeChild(f.lastChild);
       setTimeout(() => item.classList.add('fade'), 9000);
       setTimeout(() => { if (item.parentNode) item.remove(); }, 20000);
     }
@@ -396,6 +397,7 @@
       const check = (key, label, onchange) => { const l = U.el('label'); const cb = U.el('input', { type: 'checkbox' }); cb.checked = !!s[key]; cb.onchange = () => { s[key] = cb.checked; g.saveSettings(); if (onchange) onchange(cb.checked); }; l.appendChild(U.el('span', { text: label })); l.appendChild(cb); grid.appendChild(l); };
       const vol = U.el('label'); vol.appendChild(U.el('span', { text: `Volume` })); const vr = U.el('input', { type: 'range', min: 0, max: 1, step: 0.05, value: s.volume }); vr.oninput = () => { s.volume = +vr.value; MB.audio.setVolume(s.volume); g.saveSettings(); }; vol.appendChild(vr); grid.appendChild(vol);
       check('muted', 'Mute sound (M)', (v) => { MB.audio.muted = v; MB.audio.setVolume(s.volume); });
+      check('music', 'Ambient music & weather sounds', (v) => { if (!v) MB.audio.stopAmbient(); });
       check('creative', 'Creative mode (abilities are free)', () => this.refreshHotbar());
       check('particles', 'Particles', (v) => { g.renderer.show.particles = v; });
       check('shake', 'Screen shake');
@@ -475,10 +477,13 @@
       const maxCivs = field('Max civilizations', U.el('input', { type: 'number', min: 1, max: 40, value: 12 }));
       const animals = field('Wildlife density', U.el('input', { type: 'range', min: 0, max: 3, step: 0.25, value: 1 }));
       const disasters = field('Natural disasters', U.el('input', { type: 'range', min: 0, max: 3, step: 0.25, value: 1 }));
+      const scen = field('Scenario', U.el('select', { html: MB.Scenarios.list.map((k) => `<option value="${k}">${MB.Scenarios[k].icon} ${MB.Scenarios[k].name}</option>`).join('') }));
+      const scenDesc = U.el('div', { class: 'small', text: MB.Scenarios.classic.desc }); scen.onchange = () => { scenDesc.textContent = MB.Scenarios[scen.value].desc; };
       right.appendChild(f);
+      right.appendChild(scenDesc);
       const row = U.el('div', { class: 'row' });
-      row.appendChild(U.el('button', { class: 'tbtn good', text: '🌍 Create world', style: 'font-size:15px;padding:8px 16px', onclick: () => { g.newWorld({ name: name.value.trim() || 'New World', seed: seed.value.trim(), size: size.value, shape: shape.value, land: +land.value, climate: climate.value, civs: +civs.value, maxCivs: +maxCivs.value, animals: +animals.value, disasters: +disasters.value }); } }));
-      row.appendChild(U.el('button', { class: 'tbtn', text: '🎲 Surprise me', onclick: () => { g.newWorld({ name: U.civName() + ' ' + U.pick(['Isles', 'World', 'Realm']), size: U.pick(['small', 'medium', 'medium', 'large']), shape: U.pick(['earth', 'continents', 'archipelago', 'earth']), land: U.rfloat(0.3, 0.5), climate: U.pick(['temperate', 'temperate', 'hot', 'cold', 'tropical']), civs: U.rint(4, 9), maxCivs: 12, animals: 1, disasters: 1 }); } }));
+      row.appendChild(U.el('button', { class: 'tbtn good', text: '🌍 Create world', style: 'font-size:15px;padding:8px 16px', onclick: () => { g.newWorld({ name: name.value.trim() || 'New World', seed: seed.value.trim(), size: size.value, shape: shape.value, land: +land.value, climate: climate.value, civs: +civs.value, maxCivs: +maxCivs.value, animals: +animals.value, disasters: +disasters.value, scenario: scen.value }); } }));
+      row.appendChild(U.el('button', { class: 'tbtn', text: '🎲 Surprise me', onclick: () => { g.newWorld({ name: U.civName() + ' ' + U.pick(['Isles', 'World', 'Realm']), size: U.pick(['small', 'medium', 'medium', 'large']), shape: U.pick(['earth', 'continents', 'archipelago', 'earth']), land: U.rfloat(0.3, 0.5), climate: U.pick(['temperate', 'temperate', 'hot', 'cold', 'tropical']), civs: U.rint(4, 9), maxCivs: 12, animals: 1, disasters: 1, scenario: U.pick(MB.Scenarios.list) }); } }));
       right.appendChild(row);
       right.appendChild(U.el('div', { class: 'small', text: 'Big worlds (huge/colossal) need a faster computer. Medium is a good start.' }));
       cols.appendChild(left); cols.appendChild(right);

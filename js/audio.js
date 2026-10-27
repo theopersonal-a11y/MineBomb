@@ -93,6 +93,38 @@
     if (!f) return;
     try { f(); } catch (e) { /* ignore */ }
   };
+  // ---------- ambient drone + weather loop ----------
+  A.amb = null;
+  A.startAmbient = () => {
+    if (!A.ctx || A.amb) return;
+    const c = A.ctx;
+    const g = c.createGain(); g.gain.value = 0; g.connect(A.master);
+    const oscs = [];
+    for (let k = 0; k < 3; k++) {
+      const o = c.createOscillator(); o.type = k === 2 ? 'sine' : 'triangle';
+      const og = c.createGain(); og.gain.value = 0.35; o.connect(og); og.connect(g);
+      const lfo = c.createOscillator(); lfo.frequency.value = 0.07 + k * 0.03; const lg = c.createGain(); lg.gain.value = 3; lfo.connect(lg); lg.connect(o.detune); lfo.start();
+      o.start(); oscs.push(o);
+    }
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; g.disconnect(); g.connect(f); f.connect(A.master);
+    // rain loop
+    const buf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const rs = c.createBufferSource(); rs.buffer = buf; rs.loop = true;
+    const rf = c.createBiquadFilter(); rf.type = 'bandpass'; rf.frequency.value = 2200; rf.Q.value = 0.6;
+    const rg = c.createGain(); rg.gain.value = 0; rs.connect(rf); rf.connect(rg); rg.connect(A.master); rs.start();
+    A.amb = { g, oscs, rg, mood: '', vol: 0 };
+    A.setMood('day');
+    g.gain.setTargetAtTime(0.06, c.currentTime, 2);
+  };
+  A.stopAmbient = () => { if (!A.amb) return; const c = A.ctx; A.amb.g.gain.setTargetAtTime(0, c.currentTime, 0.5); A.amb.rg.gain.setTargetAtTime(0, c.currentTime, 0.5); const amb = A.amb; A.amb = null; setTimeout(() => { try { amb.oscs.forEach((o) => o.stop()); } catch (e) { /* ignore */ } }, 1500); };
+  const CHORDS = { day: [110, 138.6, 164.8], night: [110, 130.8, 164.8], war: [110, 116.5, 164.8], doom: [55, 58.3, 82.4], joy: [130.8, 164.8, 196], ice: [98, 123.5, 146.8] };
+  A.setMood = (mood) => {
+    if (!A.amb || A.amb.mood === mood) return;
+    const ch = CHORDS[mood] || CHORDS.day; const t = A.ctx.currentTime;
+    A.amb.oscs.forEach((o, i) => o.frequency.setTargetAtTime(ch[i], t, 1.5));
+    A.amb.mood = mood;
+  };
+  A.setRain = (on) => { if (!A.amb) return; A.amb.rg.gain.setTargetAtTime(on ? 0.05 : 0, A.ctx.currentTime, 1); };
   A.names = Object.keys(SFX);
   MB.audio = A;
 })();

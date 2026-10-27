@@ -29,6 +29,7 @@
         maxCivs: params.maxCivs != null ? params.maxCivs : 12,
         animals: params.animals != null ? params.animals : 1,
         disasters: params.disasters != null ? params.disasters : 1,
+        scenario: params.scenario || 'classic',
       };
       const sz = SIZES[this.params.size] || SIZES.medium;
       this.w = params.w || sz[0];
@@ -410,6 +411,7 @@
       // animals
       MB.Entities.populateAnimals(this, Math.floor(this.n / 110 * p.animals));
       this.addLog(`The world of ${this.name} was born. ${this.civs.length} tribes awaken.`, 'world');
+      if (MB.Scenarios && this.params.scenario && this.params.scenario !== 'classic') { MB.Scenarios.apply(this, this.params.scenario); const sc = MB.Scenarios[this.params.scenario]; if (sc) this.addLog(`Scenario: ${sc.name} - ${sc.desc}`, 'world'); }
       this.markAllDirty();
     }
 
@@ -497,6 +499,7 @@
       if (this.tick % 700 === 0) this.maybeNewCiv();
       if (this.tick % DAY_TICKS === 0) this.recordStats();
       if (this.tick % 400 === 0 && this.params.disasters > 0) this.randomDisaster(game);
+      if (this.flags.seaRise && this.tick % 1500 === 0) { let n = 0; for (let i = 0; i < this.n && n < 60; i++) { if (TILES[this.tiles[i]].land && this.height[i] < 140 && this.isCoastal(i) && Math.random() < 0.25) { this.setIdx(i, T.SHALLOW); n++; } } if (n) this.addLog('The seas creep higher...', 'disaster'); }
       if (this.tick % 20 === 0) this.compactEntities();
       // Rain masks from clouds are rebuilt by entities each tick
     }
@@ -605,21 +608,22 @@
         const r = Math.random();
         const x = i % w, y = (i / w) | 0;
         if (this.flags.frozenNature) continue;
+        const wet = rainMask && rainMask.has(i) ? 6 : 1;
         switch (t) {
-          case T.ASH: if (m > 90 && r < 0.03 * fertMod) this.setIdx(i, T.GRASS); break;
-          case T.MUD: if (m > 110 && r < 0.03 * fertMod) this.setIdx(i, T.GRASS); else if (m < 40 && r < 0.01) this.setIdx(i, T.WASTE); break;
-          case T.WASTE: if (m > 170 && r < 0.02 * fertMod) this.setIdx(i, T.MUD); break;
-          case T.CRATER: if (m > 160 && r < 0.01 * fertMod) this.setIdx(i, T.WASTE); break;
-          case T.SAND: if (m > 235 && r < 0.02 * fertMod && !this.isCoastal(i)) this.setIdx(i, T.GRASS); break;
-          case T.DESERT: if (m > 180 && r < 0.015 * fertMod) this.setIdx(i, T.SAVANNA); break;
-          case T.REDSAND: if (m > 200 && r < 0.01 * fertMod) this.setIdx(i, T.SAVANNA); break;
+          case T.ASH: if (m > 90 && r < 0.03 * fertMod * wet) this.setIdx(i, T.GRASS); break;
+          case T.MUD: if (m > 110 && r < 0.03 * fertMod * wet) this.setIdx(i, T.GRASS); else if (m < 40 && r < 0.01) this.setIdx(i, T.WASTE); break;
+          case T.WASTE: if (m > 170 && r < 0.02 * fertMod * wet) this.setIdx(i, T.MUD); break;
+          case T.CRATER: if (m > 160 && r < 0.01 * fertMod * wet) this.setIdx(i, T.WASTE); break;
+          case T.SAND: if (m > 235 && r < 0.02 * fertMod * wet && !this.isCoastal(i)) this.setIdx(i, T.GRASS); break;
+          case T.DESERT: if (m > 180 && r < 0.015 * fertMod * wet) this.setIdx(i, T.SAVANNA); break;
+          case T.REDSAND: if (m > 200 && r < 0.01 * fertMod * wet) this.setIdx(i, T.SAVANNA); break;
           case T.SALT: if (m > 220 && r < 0.01) this.setIdx(i, T.MUD); break;
           case T.SAVANNA:
-            if (m > 170 && r < 0.012 * fertMod) this.setIdx(i, T.GRASS);
+            if (m > 170 && r < 0.012 * fertMod * wet) this.setIdx(i, T.GRASS);
             else if (m < 12 && this.tempAt(x, y) > 0.75 && r < 0.004) this.setIdx(i, T.DESERT);
             break;
           case T.GRASS:
-            if (m > 200 && r < 0.004 * fertMod) {
+            if (m > 200 && r < 0.004 * fertMod * wet) {
               let forestNear = false;
               this.neighbors4(i, (j) => { if (this.tiles[j] === T.FOREST || this.tiles[j] === T.JUNGLE) forestNear = true; });
               if (forestNear || r < 0.0006) this.setIdx(i, this.tempAt(x, y) > 0.7 && m > 230 ? T.JUNGLE : T.FOREST);

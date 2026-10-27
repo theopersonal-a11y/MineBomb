@@ -48,7 +48,7 @@
 
   S.loadSettings = () => { try { return Object.assign({}, S.defaultSettings(), JSON.parse(safeGet(KEY_SETTINGS) || '{}')); } catch (e) { return S.defaultSettings(); } };
   S.saveSettings = (s) => safeSet(KEY_SETTINGS, JSON.stringify(s));
-  S.defaultSettings = () => ({ volume: 0.5, muted: false, particles: true, shake: true, autosave: 30, creative: true, showBorders: true, showNames: true, showTerritory: true, weatherFx: true, confirmDangerous: false, crt: false, tooltips: true, bigUI: false, eventFeed: true });
+  S.defaultSettings = () => ({ volume: 0.5, muted: false, particles: true, shake: true, autosave: 30, creative: true, showBorders: true, showNames: true, showTerritory: true, weatherFx: true, confirmDangerous: false, crt: false, tooltips: true, bigUI: false, eventFeed: true, music: true });
   S.loadAchievements = () => { try { return JSON.parse(safeGet(KEY_ACH) || '{}'); } catch (e) { return {}; } };
   S.saveAchievements = (a) => safeSet(KEY_ACH, JSON.stringify(a));
   S.loadHotbar = () => { try { return JSON.parse(safeGet(KEY_HOTBAR) || 'null'); } catch (e) { return null; } };
