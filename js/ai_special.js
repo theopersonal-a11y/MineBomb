@@ -645,6 +645,7 @@
     for (let k = 0; k < ents.length; k++) {
       const e = ents[k];
       if (e.dead) continue;
+      if (!isFinite(e.x) || !isFinite(e.y)) { e.dead = true; continue; }
       e.age++;
       if (e.flash > 0) e.flash--;
       if (e.portalCd > 0) e.portalCd--;

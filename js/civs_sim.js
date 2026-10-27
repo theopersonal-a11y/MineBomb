@@ -43,8 +43,9 @@
       c.avgPoll = pol / Math.ceil(arr.length / step); c.avgRad = rad / Math.ceil(arr.length / step);
     }
     // base
-    y.wood += 0.5 + c.era * 0.3; y.stone += c.era >= 1 ? 0.3 : 0; y.gold += c.pop * 0.004 * (1 + c.era * 0.3) * (c.personality.trade + 0.5);
-    y.science += c.pop * 0.02 * (1 + c.era * 0.15) * (0.6 + c.personality.science) * (world.globalMods.science || 1) * c.mods.science;
+    y.wood += 0.5 + c.era * 0.3; y.stone += c.era >= 1 ? 0.3 : 0; y.gold += c.pop * 0.002 * (1 + c.era * 0.2) * (c.personality.trade + 0.5);
+    y.science += c.pop * 0.008 * (1 + c.era * 0.1) * (0.6 + c.personality.science);
+    y.science *= (world.globalMods.science || 1) * c.mods.science;
     y.culture += c.pop * 0.005 + (c.traits.includes('artistic') ? 1 : 0);
     y.faith += c.personality.piety * 0.5;
     const mult = c.mods.yields * (c.goldenAge > 0 ? 1.5 : 1) * (c.darkAge > 0 ? 0.6 : 1) * (c.traits.includes('industrious') ? 1.15 : 1) * (c.avgRad > 40 ? 0.6 : 1);
@@ -72,12 +73,14 @@
     const housing = y.housing;
     c.housing = housing;
     if (c.food > 0) {
-      const room = c.pop < housing ? 1 : c.pop < housing * 1.3 ? 0.15 : 0;
-      let g = c.pop * 0.0045 * (0.4 + c.happiness / 100) * room * (world.globalMods.growth || 1) * c.mods.growth * (c.plague ? 0.2 : 1) * (c.goldenAge ? 1.4 : 1);
+      const room = Math.max(0, 1 - c.pop / Math.max(1, housing));
+      const foodRatio = y.food / Math.max(0.01, consumption);
+      let g = c.pop * 0.002 * (0.5 + c.happiness / 100) * room * (world.globalMods.growth || 1) * c.mods.growth * (c.plague ? 0.2 : 1) * (c.goldenAge ? 1.3 : 1) * (foodRatio > 0.9 ? 1 : 0.5);
       if (c.flags.babyBoom > 0) g *= 3;
-      if (c.pop < 6) g += 0.02;
+      if (c.pop < 20) g += 0.03 * room;
       if (world.flags.sterile) g = 0;
       c.pop += g;
+      if (c.pop > housing * 1.25) c.pop -= c.pop * 0.004; // overcrowding: people leave
       c.famine = 0;
     } else {
       c.food = 0;
@@ -108,13 +111,16 @@
       }
     }
     // ---- era ----
+    if (c.era >= C.ERAS.length - 1 && c.science > 99999) c.science = 99999;
+    if (!isFinite(c.science)) c.science = 0;
     if (c.era < C.ERAS.length - 1 && c.science >= C.ERA_COST[c.era] && c.pop >= C.ERA_POP[c.era] * 0.8 && !world.flags.techFreeze) {
       c.science -= C.ERA_COST[c.era] * 0.7;
       C.setEra(world, c, c.era + 1);
     }
     // ---- building ----
     progressConstruction(world, c);
-    if (c.ticks % 2 === 0) decideBuild(world, c);
+    if (c.ticks % Math.max(2, 5 - Math.floor(c.era / 3)) === 0) decideBuild(world, c);
+    if (c.ticks % 20 === 0 && c.buildings.size > c.pop * 2 + 12 && Math.random() < 0.5) abandonBuilding(world, c);
     if (c.upgradeHousing > 0 && c.ticks % 3 === 0) upgradeHousing(world, c);
     // ---- expansion ----
     if (c.ticks % 3 === 0) expand(world, c);
@@ -153,7 +159,7 @@
     for (const j of c.buildings) {
       const b = world.buildings.get(j);
       if (!b || b.prog >= 1) continue;
-      b.prog += (0.08 + c.era * 0.02) / B[b.t].buildTime * (c.goldenAge ? 1.5 : 1) * (c.personality.industry + 0.6);
+      b.prog += (0.03 + c.era * 0.004) / B[b.t].buildTime * (c.goldenAge ? 1.5 : 1) * (c.personality.industry + 0.6);
       if (b.prog >= 1) C.completeBuilding(world, c, b);
       world.markDirty(b.x, b.y);
       if (++n > 4) break;
@@ -170,7 +176,8 @@
     return best;
   }
   function decideBuild(world, c) {
-    if (underConstruction(world, c) >= 3 + c.era) return;
+    if (underConstruction(world, c) >= 2 + Math.floor(c.era / 2)) return;
+    if (c.buildings.size >= 8 + c.pop * 1.3 + c.era * 2) return;
     const y = c.yields;
     const housesNeeded = c.pop > y.housing * 0.8;
     const options = [];
@@ -225,6 +232,14 @@
     C.build(world, c, o.t, site.x, site.y, false);
     if (o.t === 'wall') { // build a few walls at once
       for (let k = 0; k < 3; k++) { const s2 = C.findSite(world, c, bd); if (s2 && C.canAfford(c, bd)) C.build(world, c, 'wall', s2.x, s2.y, false); }
+    }
+  }
+  function abandonBuilding(world, c) {
+    const arr = Array.from(c.buildings);
+    for (let k = 0; k < 6; k++) {
+      const j = arr[(Math.random() * arr.length) | 0];
+      const b = world.buildings.get(j);
+      if (b && !B[b.t].wonder && !(b.x === c.cx && b.y === c.cy)) { world.destroyBuilding(j, true); return; }
     }
   }
   function upgradeHousing(world, c) {
@@ -282,7 +297,7 @@
     c.soldiers = soldiers;
     const barracks = (c.yields && c.yields.military) || 0;
     const wars = Object.keys(c.wars).length;
-    const desired = Math.min(Math.floor(c.pop / 3), Math.floor(c.pop * (0.04 + c.personality.aggression * 0.08) * (wars ? 2.2 : 1) * (c.fear > 20 ? 1.4 : 1)) + barracks * 2, 2 + barracks * 6 + (c.era >= 6 ? 10 : 0));
+    const desired = Math.min(Math.floor(c.pop / 3), Math.floor(c.pop * (0.04 + c.personality.aggression * 0.08) * (wars ? 2.2 : 1) * (c.fear > 20 ? 1.4 : 1)) + barracks * 2, 2 + barracks * 4 + (c.era >= 6 ? 6 : 0), 30);
     if (soldiers < desired && c.pop > 8 && c.gold >= 2) {
       c.gold -= 2;
       let sx = c.cx, sy = c.cy;
@@ -338,7 +353,7 @@
     let humans = 0;
     const list = [];
     for (const e of world.entities) { if (e.dead || e.civ !== c.id) continue; if (e.type === 'human') { humans++; list.push(e); } }
-    const target = U.clamp(Math.ceil(c.pop / 4), 2, 40 + c.era * 4);
+    const target = U.clamp(Math.ceil(c.pop / 5), 2, 22 + c.era * 2);
     if (humans < target && c.tileArr.length) {
       const n = Math.min(3, target - humans);
       for (let k = 0; k < n; k++) {
@@ -354,36 +369,59 @@
     }
   }
 
+  function borderContacts(world, c) {
+    const contacts = {};
+    const arr = c.tileArr; if (!arr || !arr.length) return contacts;
+    const n = Math.min(arr.length, 120), step = Math.max(1, Math.floor(arr.length / n));
+    for (let k = 0; k < arr.length; k += step) {
+      const i = arr[k];
+      world.neighbors4(i, (j) => { const o = world.owner[j]; if (o >= 0 && o !== c.id) contacts[o] = (contacts[o] || 0) + 1; });
+    }
+    const scale = arr.length / Math.ceil(arr.length / step);
+    for (const k in contacts) contacts[k] *= scale;
+    return contacts;
+  }
+
   function diplomacy(world, c) {
+    const contacts = borderContacts(world, c);
+    c.contacts = contacts;
     for (const o of world.civs) {
       if (!o.alive || o === c) continue;
       let r = c.relations[o.id] || 0;
-      // drift
-      r += r > 0 ? -0.3 : 0.3;
+      // drift toward neutral
+      r += r > 0 ? -0.2 : 0.2;
       const d = U.dist(c.cx, c.cy, o.cx, o.cy);
       const close = d < 30;
-      if (c.allies[o.id]) r += 0.5;
-      if (c.traits.includes('peaceful') || c.traits.includes('diplomatic')) r += 0.3;
-      if (c.traits.includes('xenophobic')) r -= 0.4;
-      if (close) r -= c.personality.aggression * 0.6;
-      if (c.traits.some((t) => o.traits.includes(t))) r += 0.2;
-      if (c.gov === o.gov) r += 0.15;
-      if (Math.abs(c.era - o.era) >= 3) r -= 0.2;
-      if (o.fear > 50) r += 0.2; // pity
-      if (c.era >= 2 && o.era >= 2 && !c.wars[o.id] && c.personality.trade > 0.4 && Math.random() < 0.5) { r += 0.4; c.gold += 1; o.gold += 1; }
+      const contact = contacts[o.id] || 0;
+      if (c.allies[o.id]) r += 0.6;
+      if (c.traits.includes('peaceful') || c.traits.includes('diplomatic')) r += 0.25;
+      if (c.traits.includes('xenophobic')) r -= 0.3;
+      // border friction is the main driver of conflict
+      if (contact > 0) r -= Math.min(2.5, contact / 6) * (0.35 + c.personality.aggression * 0.9);
+      else if (close) r -= c.personality.aggression * 0.3;
+      if (c.pop > o.pop * 1.6 && c.personality.aggression > 0.45 && (contact > 0 || close)) r -= 0.4; // opportunism
+      if (c.traits.some((t) => o.traits.includes(t))) r += 0.15;
+      if (c.gov === o.gov) r += 0.1;
+      if (Math.abs(c.era - o.era) >= 3) r -= 0.15;
+      if (c.religion && c.religion === o.religion) r += 0.3;
+      if (c.era >= 2 && o.era >= 2 && !c.wars[o.id] && c.personality.trade > 0.4 && Math.random() < 0.5) { r += 0.25; c.gold += 1; o.gold += 1; }
+      // random incidents
+      const inc = Math.random();
+      if (inc < 0.012 && !c.wars[o.id]) { r -= 14; if (r < -30 && Math.random() < 0.5) world.addLog(`${U.pick(['A border skirmish', 'A diplomatic insult', 'A stolen caravan', 'A poisoned well', 'A hunting dispute'])} sours relations between ${fullName(c)} and ${fullName(o)}.`, 'civ', c.cx, c.cy); }
+      else if (inc > 0.988 && !c.wars[o.id]) { r += 10; if (r > 40 && Math.random() < 0.4) world.addLog(`${U.pick(['A royal wedding', 'A generous gift', 'A shared festival', 'A trade fair'])} brings ${fullName(c)} and ${fullName(o)} closer.`, 'peace', c.cx, c.cy); }
       if (world.flags.worldPeace) r = Math.max(r, 20);
       if (world.flags.worldWar) r = Math.min(r, -50);
       c.relations[o.id] = U.clamp(r, -100, 100);
       const war = c.wars[o.id];
       if (!war) {
-        const canReach = close || (c.personality.sea > 0.4 && c.era >= 2) || d < 60 && c.era >= 5;
-        if (r < -45 && canReach && c.soldiers >= 3 && Math.random() < c.personality.aggression * 0.25 && (world.tick - c.lastWarTick > 1500 || c.personality.aggression > 0.8) && !world.flags.worldPeace) {
-          C.declareWar(world, c, o, U.pick(['border dispute', 'ancient grudge', 'resources', 'insult', 'glory', 'conquest', 'religious zeal', 'a stolen cow']));
-        } else if (r > 70 && !c.allies[o.id] && Math.random() < 0.12) C.ally(world, c, o);
+        const canReach = contact > 0 || close || (c.personality.sea > 0.4 && c.era >= 2 && d < 70) || (d < 60 && c.era >= 5);
+        if (r < -40 && canReach && c.soldiers >= 2 && Math.random() < 0.12 + c.personality.aggression * 0.3 && (world.tick - c.lastWarTick > 1200) && !world.flags.worldPeace) {
+          C.declareWar(world, c, o, U.pick(['border dispute', 'ancient grudge', 'resources', 'an insult', 'glory', 'conquest', 'religious zeal', 'a stolen cow', 'living space', 'revenge']));
+        } else if (r > 65 && !c.allies[o.id] && Math.random() < 0.1) C.ally(world, c, o);
       } else {
         const dur = world.tick - war;
-        const losing = c.pop < c.maxPop * 0.6 || c.fear > 40;
-        if ((dur > 2500 && Math.random() < 0.08) || (losing && Math.random() < 0.15) || (dur > 8000)) C.makePeace(world, c, o);
+        const losing = c.pop < c.maxPop * 0.6 || c.fear > 40 || c.soldiers === 0;
+        if ((dur > 2000 && Math.random() < 0.06) || (losing && dur > 600 && Math.random() < 0.12) || dur > 7000) C.makePeace(world, c, o);
       }
     }
   }
@@ -452,10 +490,10 @@
     for (const j of c.tiles) { const d = U.dist(j % world.w, (j / world.w) | 0, c.cx, c.cy); if (d > bd) { bd = d; best = j; } }
     if (best < 0 || bd < 9) return;
     const x = best % world.w, y = (best / world.w) | 0;
-    const nc = C.makeCiv(world, x, y, { pop: c.pop * 0.3, era: c.era });
+    const nc = C.makeCiv(world, x, y, { pop: Math.min(c.pop * 0.3, 60 + c.era * 20), era: c.era });
     world.civs.push(nc);
     nc.gov = U.pick(C.GOVS_BY_ERA[nc.era]); C.newLeader(nc, world);
-    c.pop *= 0.7;
+    c.pop -= nc.pop;
     world.forRadius(x, y, 7, (xx, yy, j) => {
       if (world.owner[j] === c.id) {
         world.setOwner(j, nc.id);
@@ -517,5 +555,5 @@
     }
   }
 
-  Object.assign(MB.Civs, { updateAll, updateCiv, computeYields, decideBuild, expand, military, syncHumans, diplomacy, colonize, randomEvent, secede, countType, countCat, CIV_INTERVAL });
+  Object.assign(MB.Civs, { abandonBuilding, updateAll, updateCiv, computeYields, decideBuild, expand, military, syncHumans, diplomacy, colonize, randomEvent, secede, countType, countCat, CIV_INTERVAL });
 })();

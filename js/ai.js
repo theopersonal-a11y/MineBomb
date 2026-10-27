@@ -51,6 +51,7 @@
   }
   function findById(world, id) {
     if (!id) return null;
+    if (typeof id === 'object') return id.dead ? null : id;
     const ents = world.entities;
     for (let i = 0; i < ents.length; i++) if (ents[i].id === id) return ents[i].dead ? null : ents[i];
     return null;
@@ -95,7 +96,7 @@
     const i = yi * world.w + xi;
     const t = world.tiles[i], td = TILES[t];
     if (e.habitat !== 'air' && !e.def.ethereal) {
-      if (world.fire[i] && !e.fireproof) E.damage(world, e, 8, 'fire');
+      if (world.fire[i] && !e.fireproof) { E.damage(world, e, e.kind === 'human' ? 5 : 8, 'fire'); e.vx += U.rfloat(-0.35, 0.35); e.vy += U.rfloat(-0.35, 0.35); e.hasTarget = false; e.fleeing = { x: xi + 0.5, y: yi + 0.5, id: -1 }; e.fleeT = 25; }
       if (td.hot && !e.fireproof) E.damage(world, e, 20, 'lava');
       if (td.water && e.habitat === 'land') E.damage(world, e, 4, 'drowning');
       if (!td.water && e.habitat === 'water') E.damage(world, e, 3, 'stranded');
@@ -147,6 +148,7 @@
     if (!e.def.breed || e.age < 700 || e.hp < e.maxHp * 0.5) return;
     if (Math.random() > e.def.breed * (world.globalMods.growth || 1)) return;
     if (world.flags.sterile) return;
+    if (world.counts && world.counts.animal > world.animalCap() * 1.2) return;
     let same = 0;
     world.near(e.x, e.y, 4, (o) => { if (o.type === e.type) same++; return same > 9; });
     if (same < 2 || same > 8) return;

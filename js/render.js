@@ -106,6 +106,7 @@
     screenToWorld(sx, sy) { return [(sx / this.cam.zoom + this.cam.x) / TILE, (sy / this.cam.zoom + this.cam.y) / TILE]; }
     centerOn(wx, wy) { this.cam.x = wx * TILE - this.canvas.width / 2 / this.cam.zoom; this.cam.y = wy * TILE - this.canvas.height / 2 / this.cam.zoom; }
     clampCamera(world) {
+      if (!isFinite(this.cam.x) || !isFinite(this.cam.y) || !isFinite(this.cam.zoom)) { this.cam.zoom = 2; this.centerOn(world.w / 2, world.h / 2); }
       const vw = this.canvas.width / this.cam.zoom, vh = this.canvas.height / this.cam.zoom;
       const ww = world.w * TILE, wh = world.h * TILE;
       const margin = 80;
@@ -165,7 +166,7 @@
             const px = tx * TILE, py = ty * TILE;
             if (this.show.territory) { // subtle tint: dither pattern of civ color
               const cc = c32(civ.color);
-              for (let yy = 0; yy < TILE; yy += 4) for (let xx = ((yy / 4) | 0) % 2 * 4; xx < TILE; xx += 8) { const p = (py + yy) * CHPX + px + xx; d32[p] = blend32(d32[p], cc, 0.22); }
+              for (const [xx, yy] of [[2, 2], [6, 6]]) { const p = (py + yy) * CHPX + px + xx; d32[p] = blend32(d32[p], cc, 0.45); }
             }
             if (this.show.borders) {
               const cc = c32(civ.color);
@@ -252,9 +253,9 @@
         }
         case 'hills': for (let k = 0; k < 4; k++) { put((n1 + k) % 8, (n2 + 2 - k) % 8, L32); } put(n3, n4, D32); put((n3 + 1) % 8, (n4 + 1) % 8, D32); put((n3 + 2) % 8, (n4 + 2) % 8, D32); break;
         case 'mountain': {
-          const peak = c32('#ffffff'), snowy = world.tempAt(wx, wy) < 0.55 || world.height[i] > 235;
+          const peak = c32('#ffffff'), snowy = world.tempAt(wx, wy) < 0.4 || world.height[i] > 245;
           for (let yy = 0; yy < TILE; yy++) for (let xx = 0; xx < TILE; xx++) { const dx = xx - 3.5; const ridge = Math.abs(dx) < (yy + 1) * 0.6; if (!ridge) continue; put(xx, yy, dx < 0 ? D32 : L32); }
-          if (snowy) { put(3, 0, peak); put(4, 0, peak); put(3, 1, peak); put(4, 1, peak); put(2, 1, peak); put(5, 2, peak); }
+          if (snowy) { put(3, 0, peak); put(4, 0, peak); put(4, 1, peak); }
           else put(3, 0, L32);
           break;
         }
@@ -550,7 +551,7 @@
           case 'line': { const [x2, y2] = this.worldToScreen(p.x2, p.y2); ctx.strokeStyle = p.color; ctx.lineWidth = p.width || 1; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(x2, y2); ctx.stroke(); break; }
           case 'poly': { ctx.strokeStyle = p.glow || p.color; ctx.lineWidth = (p.width || 1) * 3; ctx.globalAlpha *= 0.3; ctx.beginPath(); for (let k = 0; k < p.pts.length; k++) { const [x, y] = this.worldToScreen(p.pts[k][0], p.pts[k][1]); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); } ctx.stroke(); ctx.globalAlpha = Math.max(0, 1 - lifeT); ctx.strokeStyle = p.color; ctx.lineWidth = p.width || 1; ctx.stroke(); break; }
           case 'ring': { ctx.strokeStyle = p.color; ctx.lineWidth = p.width || 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(0.1, p.r * TILE * z), 0, Math.PI * 2); ctx.stroke(); break; }
-          case 'glow': { const r = Math.max(1, p.r * TILE * z); const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r); g.addColorStop(0, p.color); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(sx - r, sy - r, r * 2, r * 2); break; }
+          case 'glow': { const r = Math.max(1, p.r * TILE * z); if (!isFinite(r) || !isFinite(sx) || !isFinite(sy)) break; const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r); g.addColorStop(0, p.color); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(sx - r, sy - r, r * 2, r * 2); break; }
           case 'text': { ctx.font = `${Math.max(10, 5 * z)}px monospace`; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(p.text, sx + 1, sy + 1); ctx.fillStyle = p.color; ctx.fillText(p.text, sx, sy); break; }
         }
       }

@@ -21,7 +21,7 @@
     for (let i = 0; i < list.length; i++) {
       const p = list[i];
       p.age += dtTicks;
-      if (p.age >= p.life) continue;
+      if (!(p.age < p.life) || !isFinite(p.x) || !isFinite(p.y)) continue;
       p.x += p.vx * dtTicks; p.y += p.vy * dtTicks;
       if (p.grav) p.vy += 0.004 * dtTicks * p.grav;
       if (p.drag) { p.vx *= Math.pow(p.drag, dtTicks); p.vy *= Math.pow(p.drag, dtTicks); }

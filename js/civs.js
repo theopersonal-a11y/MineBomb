@@ -6,7 +6,7 @@
 
   const ERAS = ['Stone Age', 'Bronze Age', 'Iron Age', 'Medieval Era', 'Renaissance', 'Industrial Age', 'Modern Age', 'Atomic Age', 'Space Age', 'Singularity'];
   const ERA_ICONS = ['🪨', '🥉', '⚔️', '🏰', '🎨', '🏭', '🏙️', '☢️', '🚀', '🧠'];
-  const ERA_COST = [60, 160, 380, 750, 1400, 2300, 3600, 5600, 9000, Infinity];
+  const ERA_COST = [80, 250, 700, 1600, 3500, 7000, 13000, 22000, 36000, 90000];
   const ERA_POP = [12, 25, 40, 70, 110, 160, 230, 320, 450, 600];
   const HOUSING = ['hut', 'straw_house', 'wood_house', 'stone_house', 'townhouse', 'apartment', 'tower_block', 'skyscraper', 'arcology', 'arcology'];
   const GOVS_BY_ERA = [['Tribe'], ['Chiefdom'], ['Kingdom', 'Sultanate', 'Theocracy'], ['Kingdom', 'Monarchy', 'Theocracy', 'Sultanate'], ['Kingdom', 'Republic', 'Empire', 'Oligarchy'], ['Empire', 'Republic', 'Kingdom', 'Dictatorship'], ['Democracy', 'Republic', 'Dictatorship', 'Federation'], ['Democracy', 'Federation', 'Technocracy', 'Dictatorship'], ['Federation', 'Technocracy', 'Democracy'], ['Technocracy', 'Hive', 'Federation']];
@@ -94,6 +94,7 @@
   bdef('world_tree', { icon: '🌳', era: 0, cat: 'wonder', cost: {}, hp: 3000, food: 10, happy: 5, culture: 5, faith: 5, pattern: 'worldtree', unique: true, wonder: true });
   bdef('ruin_marker', { icon: '🏚️', era: 0, cat: 'misc', cost: {}, hp: 1, pattern: 'house' });
 
+  for (const k in B) { const bd = B[k]; if (bd.science) bd.science *= 0.5; if (bd.buildTime === 1) bd.buildTime = U.clamp(bd.hp / 70, 1, 10); if (bd.cat === 'house') for (const c in bd.cost) bd.cost[c] = Math.round(bd.cost[c] * 1.5); }
   const WONDERS = Object.keys(B).filter((k) => B[k].wonder);
 
   function fullName(c) {

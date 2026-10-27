@@ -223,12 +223,16 @@
       const g = this.grid;
       for (let i = 0; i < g.length; i++) g[i].length = 0;
       const cs = this.gridCell;
+      const counts = { animal: 0, monster: 0, human: 0, mythic: 0, special: 0 };
       for (const e of this.entities) {
         if (e.dead) continue;
+        counts[e.kind] = (counts[e.kind] || 0) + 1;
         const gx = U.clamp((e.x / cs) | 0, 0, this.gw - 1), gy = U.clamp((e.y / cs) | 0, 0, this.gh - 1);
         g[gy * this.gw + gx].push(e);
       }
+      this.counts = counts;
     }
+    animalCap() { return Math.floor(this.n / 60 * (this.params.animals || 1)) + 60; }
     near(x, y, r, fn) {
       // iterate entities within radius r of (x, y); fn(e, dist) ; return true from fn to stop
       const cs = this.gridCell;
@@ -724,8 +728,8 @@
     }
 
     naturalSpawns() {
-      const cap = Math.floor(this.n / 90 * this.params.animals);
-      const animals = this.countEntities((e) => e.kind === 'animal');
+      const cap = Math.floor(this.animalCap() * 0.6);
+      const animals = this.counts ? this.counts.animal : this.countEntities((e) => e.kind === 'animal');
       if (animals < cap) MB.Entities.populateAnimals(this, Math.min(6, cap - animals));
       if (this.flags.monsterSpawns && Math.random() < 0.4) {
         const i = this.randomTile((t) => TILES[t].land && TILES[t].walk, 40);
@@ -762,7 +766,7 @@
       if (i < 0) return;
       const x = i % this.w, y = (i / this.w) | 0;
       if (r < 0.3) { MB.Entities.spawn(this, 'tornado', x + 0.5, y + 0.5, { life: 500 }); this.addLog('A tornado touches down!', 'disaster', x, y); }
-      else if (r < 0.45) { MB.Entities.spawn(this, 'meteor', x + 0.5, y - 30, { tx: x + 0.5, ty: y + 0.5, power: 4 }); this.addLog('A meteor streaks across the sky!', 'disaster', x, y); }
+      else if (r < 0.45) { MB.Entities.spawn(this, 'meteor', x + 0.5, y - 30, { ttx: x + 0.5, tty: y + 0.5, power: 4 }); this.addLog('A meteor streaks across the sky!', 'disaster', x, y); }
       else if (r < 0.6) { if (this.moist[i] < 120) { this.ignite(i, 150); this.addLog('A wildfire breaks out!', 'disaster', x, y); } }
       else if (r < 0.75) { MB.lib.earthquake(this, x, y, 7, 0.6); this.addLog('The ground trembles - an earthquake!', 'disaster', x, y); }
       else if (r < 0.85) { const c = this.civAt(x, y); if (c && c.alive && c.pop > 40) MB.Civs.plague(this, c, 0.3); }
