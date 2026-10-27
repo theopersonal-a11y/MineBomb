@@ -135,14 +135,14 @@
     openPanel(name, opts) {
       this.panel = name; this.panelOpts = opts || {};
       this.el.modal.classList.remove('hidden');
-      $('modal-close').style.visibility = this.g.world ? 'visible' : 'hidden';
+      $('modal-close').style.visibility = this.g.world && !this.g.demo ? 'visible' : 'hidden';
       const titles = { inventory: '🎒 Abilities', civs: '🏛️ Civilizations', log: '📜 Chronicle', stats: '📈 World Statistics', settings: '⚙️ Settings', help: '❔ Help', worlds: '🌍 MineBomb - Worlds', achievements: '🏆 Achievements' };
       this.el.modalTitle.textContent = titles[name] || name;
       const fn = { inventory: 'renderInventory', civs: 'renderCivs', log: 'renderLog', stats: 'renderStats', settings: 'renderSettings', help: 'renderHelp', worlds: 'renderWorlds', achievements: 'renderAchievements' }[name];
       if (fn) this[fn]();
       if (MB.audio) MB.audio.play('open');
     }
-    closePanel() { if (!this.g.world) return; this.panel = null; this.el.modal.classList.add('hidden'); if (MB.audio) MB.audio.play('close'); }
+    closePanel() { if (!this.g.world || this.g.demo) return; this.panel = null; this.el.modal.classList.add('hidden'); if (MB.audio) MB.audio.play('close'); }
 
     // ---------- inventory ----------
     renderInventory() {
@@ -178,7 +178,7 @@
       else if (this.invCat === 'Good') list = list.filter((a) => a.align === 'good');
       else if (this.invCat === 'Evil') list = list.filter((a) => a.align === 'evil');
       else if (this.invCat !== 'All') list = list.filter((a) => a.cat === this.invCat);
-      if (q) list = list.filter((a) => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
+      if (q) { const score = (a) => { const n = a.name.toLowerCase(); return n === q ? 0 : n.startsWith(q) ? 1 : n.includes(q) ? 2 : a.cat.toLowerCase().includes(q) ? 3 : a.desc.toLowerCase().includes(q) ? 4 : 9; }; list = list.filter((a) => score(a) < 9).sort((a, b) => score(a) - score(b)); }
       const frag = document.createDocumentFragment();
       let n = 0;
       for (const ab of list) {
@@ -436,17 +436,17 @@
     // ---------- worlds ----------
     renderWorlds() {
       const g = this.g, mc = this.el.modalContent; mc.innerHTML = '';
-      const start = !g.world;
+      const start = !g.world || g.demo;
       if (start) { mc.appendChild(U.el('div', { class: 'title', text: '💣 MineBomb' })); mc.appendChild(U.el('div', { class: 'subtitle', text: `A pixel god sandbox. ${A.list.length} abilities. Infinite ways to ruin (or save) a tiny world.` })); }
       const cols = U.el('div', { class: 'cols' });
       // left: saved worlds
       const left = U.el('div');
       left.appendChild(U.el('h4', { text: 'Your worlds' }));
       const list = MB.Storage.listWorlds();
-      if (g.world) { const cur = U.el('div', { class: 'world-card' }); cur.appendChild(U.el('div', { html: `<div class="nm">▶ ${esc(g.world.name)} (current)</div><div class="info">${g.world.w}×${g.world.h} · Year ${g.world.year()}</div>` })); const acts = U.el('div', { class: 'actions' }); acts.appendChild(U.el('button', { class: 'tbtn good', text: 'Continue', onclick: () => this.closePanel() })); acts.appendChild(U.el('button', { class: 'tbtn', text: '💾 Save', onclick: () => { g.saveWorld(true); this.renderWorlds(); } })); acts.appendChild(U.el('button', { class: 'tbtn', text: '📤 Export JSON', onclick: () => g.exportWorld() })); acts.appendChild(U.el('button', { class: 'tbtn', text: '✏️ Rename', onclick: () => { const n = prompt('World name:', g.world.name); if (n) { g.world.name = n.slice(0, 40); g.saveWorld(true); this.renderWorlds(); } } })); cur.appendChild(acts); left.appendChild(cur); }
+      if (g.world && !g.demo) { const cur = U.el('div', { class: 'world-card' }); cur.appendChild(U.el('div', { html: `<div class="nm">▶ ${esc(g.world.name)} (current)</div><div class="info">${g.world.w}×${g.world.h} · Year ${g.world.year()}</div>` })); const acts = U.el('div', { class: 'actions' }); acts.appendChild(U.el('button', { class: 'tbtn good', text: 'Continue', onclick: () => this.closePanel() })); acts.appendChild(U.el('button', { class: 'tbtn', text: '💾 Save', onclick: () => { g.saveWorld(true); this.renderWorlds(); } })); acts.appendChild(U.el('button', { class: 'tbtn', text: '📤 Export JSON', onclick: () => g.exportWorld() })); acts.appendChild(U.el('button', { class: 'tbtn', text: '✏️ Rename', onclick: () => { const n = prompt('World name:', g.world.name); if (n) { g.world.name = n.slice(0, 40); g.saveWorld(true); this.renderWorlds(); } } })); cur.appendChild(acts); left.appendChild(cur); }
       if (!list.length) left.appendChild(U.el('div', { class: 'small', text: 'No saved worlds yet. Create one on the right!' }));
       for (const wi of list) {
-        if (g.world && wi.id === g.world.id) continue;
+        if (g.world && !g.demo && wi.id === g.world.id) continue;
         const card = U.el('div', { class: 'world-card' });
         card.appendChild(U.el('div', { html: `<div class="nm">${esc(wi.name)}</div><div class="info">${esc(wi.size || '')} · Year ${wi.year || 1} · pop ${U.fmt(wi.pop || 0)} · ${wi.civs || 0} civs · ${((wi.bytes || 0) / 1024).toFixed(0)} KB · saved ${new Date(wi.updated).toLocaleString()}</div>` }));
         const acts = U.el('div', { class: 'actions' });

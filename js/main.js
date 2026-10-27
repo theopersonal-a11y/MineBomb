@@ -80,14 +80,33 @@
       MB.audio.muted = !!this.settings.muted; MB.audio.setVolume(this.settings.volume);
       const meta = S.loadMeta();
       const list = S.listWorlds();
-      if (meta.lastWorld && list.some((w) => w.id === meta.lastWorld)) { if (!this.loadWorld(meta.lastWorld)) this.ui.openPanel('worlds'); }
-      else this.ui.openPanel('worlds');
+      if (meta.lastWorld && list.some((w) => w.id === meta.lastWorld)) { if (!this.loadWorld(meta.lastWorld)) this.startDemo(); }
+      else this.startDemo();
       requestAnimationFrame((ts) => this.loop(ts));
       window.addEventListener('resize', () => this.renderer.resize());
       window.addEventListener('beforeunload', () => { if (this.world) this.saveWorld(false); });
       document.addEventListener('visibilitychange', () => { if (document.hidden && this.world) this.saveWorld(false); this.lastTs = 0; });
     }
 
+    // ---------- demo world behind the start menu ----------
+    startDemo() {
+      try {
+        const w = new MB.World({ name: 'Demo', size: 'small', civs: 5, scenario: 'classic' });
+        w.generate();
+        for (let k = 0; k < 400; k++) w.step(this);
+        this.world = w; this.demo = true;
+        this.renderer.resetWorld(); this.renderer.cam.zoom = 2;
+        const c = w.civs.find((x) => x.alive); if (c) this.renderer.centerOn(c.cx + 0.5, c.cy + 0.5);
+        this.speed = 2;
+      } catch (e) { console.error(e); this.world = null; }
+      this.ui.openPanel('worlds');
+    }
+    showTips() {
+      if (this.settings.tipsShown) return;
+      this.settings.tipsShown = true; this.saveSettings();
+      const tips = ['Tip: your hotbar is at the bottom. Press 1-0 to pick an ability, then left-click the world.', 'Tip: right-drag to pan, scroll to zoom, right-click anything to inspect it.', 'Tip: press E to open all 900+ abilities. Click one to put it in the selected slot.', 'Tip: civilizations grow on their own. Gift them food or science... or drop a tornado on them.', 'Tip: everything autosaves. Esc opens the world menu to make more worlds or export JSON.'];
+      tips.forEach((t, i) => setTimeout(() => { if (this.world && !this.demo) this.ui.toast(t, 7000); }, 2500 + i * 9000));
+    }
     // ---------- world management ----------
     newWorld(params) {
       this.ui.toast('Generating world...', 1500);
@@ -98,6 +117,7 @@
         this.saveWorld(false);
         this.ui.closePanel();
         this.ui.toast(`Welcome to ${w.name}! ${w.civs.length} tribes await your attention.`, 4000);
+        this.showTips();
       }, 30);
     }
     loadWorld(id) {
@@ -106,11 +126,14 @@
       this.setWorld(w);
       this.ui.closePanel();
       this.ui.toast(`Loaded ${w.name}.`, 2000);
+      this.showTips();
       return true;
     }
     setWorld(w) {
       if (this.world && this.world !== w) this.saveWorld(false);
+      this.demo = false;
       this.world = w;
+      this.speed = 1;
       this.renderer.resetWorld();
       this.renderer.follow = null;
       this.renderer.cam.zoom = this.canvas.width < 900 ? 1.5 : 2;
@@ -125,7 +148,7 @@
       this.ui.refreshHotbar();
     }
     saveWorld(manual) {
-      if (!this.world) return;
+      if (!this.world || this.demo) return;
       const r = S.saveWorld(this.world);
       this.lastSave = performance.now();
       if (manual) this.ui.toast(r.ok ? `Saved (${(r.size / 1024).toFixed(0)} KB).` : 'Save failed: browser storage is full. Export to JSON or delete old worlds.', 3000);
@@ -162,7 +185,7 @@
     updateBrushColor() { const ab = this.currentAbility(); const b = this.renderer.brush; b.color = ab ? (ab.align === 'good' ? '#7fff7f' : ab.align === 'evil' ? '#ff5f5f' : '#9fd3ff') : '#fff'; }
     effectiveRadius(ab) { if (!ab) return this.brushR; if (ab.mode === 'global' || ab.r === 0) return 0; if (ab.cat === 'Terrain' || ab.cat === 'Nature' || ab.mode === 'paint') return Math.max(0.5, this.brushR * (ab.r <= 1 ? 0.5 : 1)); return Math.max(0.5, ab.r + (this.brushR - 3) * 0.5); }
     useAbilityAt(ab, x, y, force) {
-      if (!ab || !this.world) return false;
+      if (!ab || !this.world || this.demo) return false;
       const w = this.world;
       if (!this.settings.creative && ab.cost > 0) {
         if (this.power < ab.cost) { if (!force) { this.ui.toast(`Not enough power (${ab.cost} needed).`, 1200); if (MB.audio) MB.audio.play('error'); } return false; }
@@ -243,7 +266,7 @@
       w.addLog(`Chaos: ${ab.name}!`, 'world', x | 0, y | 0);
     }
     checkAchievements() {
-      const w = this.world; if (!w) return;
+      const w = this.world; if (!w || this.demo) return;
       for (const a of ACHIEVEMENTS) {
         if (this.achievements[a.id]) continue;
         let ok = false;
