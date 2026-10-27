@@ -336,7 +336,7 @@
     if (e.civ >= 0 && world.civs[e.civ]) {
       const civ = world.civs[e.civ];
       if (d.kind === 'human' && e.type !== 'boat' && e.type !== 'fishing_boat') {
-        civ.pop = Math.max(0, civ.pop - (e.type === 'soldier' ? 1 : 2));
+        civ.pop = Math.max(0, civ.pop - (e.type === 'soldier' ? Math.min(1, civ.pop * 0.02) : Math.max(0.5, Math.min(2, civ.pop * 0.03))));
         civ.deaths = (civ.deaths || 0) + 1;
         if (cause && cause !== 'age') civ.fear = Math.min(100, (civ.fear || 0) + 1);
       }

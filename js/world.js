@@ -497,7 +497,7 @@
       MB.Civs.updateAll(this, game);
       if (this.tick % 100 === 0) this.naturalSpawns();
       if (this.tick % 700 === 0) this.maybeNewCiv();
-      if (this.tick % DAY_TICKS === 0) this.recordStats();
+      if (this.tick % DAY_TICKS === 0) { this.recordStats(); this.recordFrame(); }
       if (this.tick % 400 === 0 && this.params.disasters > 0) this.randomDisaster(game);
       if (this.flags.seaRise && this.tick % 1500 === 0) { let n = 0; for (let i = 0; i < this.n && n < 60; i++) { if (TILES[this.tiles[i]].land && this.height[i] < 140 && this.isCoastal(i) && Math.random() < 0.25) { this.setIdx(i, T.SHALLOW); n++; } } if (n) this.addLog('The seas creep higher...', 'disaster'); }
       if (this.tick % 20 === 0) this.compactEntities();
@@ -511,6 +511,13 @@
       arr.length = j;
     }
 
+    recordFrame() {
+      if (!this.frames) this.frames = [];
+      if (this.frames.length >= 600) this.frames.splice(0, 100);
+      const owner = new Int8Array(this.n), cls = new Uint8Array(this.n);
+      for (let i = 0; i < this.n; i++) { const o = this.owner[i]; owner[i] = o > 126 ? 126 : o; const td = TILES[this.tiles[i]]; cls[i] = td.water ? 0 : td.elev >= 1 ? 2 : (this.tiles[i] === T.FOREST || this.tiles[i] === T.JUNGLE) ? 3 : this.fire[i] ? 4 : 1; }
+      this.frames.push({ day: this.day(), year: this.year(), owner, cls, pop: this.civs.reduce((s, c) => s + (c.alive ? c.pop : 0), 0) });
+    }
     recordStats() {
       let pop = 0, alive = 0;
       for (const c of this.civs) if (c.alive) { pop += c.pop; alive++; }

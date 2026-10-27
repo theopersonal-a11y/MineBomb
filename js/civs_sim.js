@@ -73,9 +73,9 @@
     const housing = y.housing;
     c.housing = housing;
     if (c.food > 0) {
-      const room = Math.max(0, 1 - c.pop / Math.max(1, housing));
+      const room = Math.max(0, 1 - 0.6 * c.pop / Math.max(1, housing));
       const foodRatio = y.food / Math.max(0.01, consumption);
-      let g = c.pop * 0.002 * (0.5 + c.happiness / 100) * room * (world.globalMods.growth || 1) * c.mods.growth * (c.plague ? 0.2 : 1) * (c.goldenAge ? 1.3 : 1) * (foodRatio > 0.9 ? 1 : 0.5);
+      let g = c.pop * 0.0022 * (0.5 + c.happiness / 100) * room * (world.globalMods.growth || 1) * c.mods.growth * (c.plague ? 0.2 : 1) * (c.goldenAge ? 1.3 : 1) * (foodRatio > 0.9 ? 1 : 0.5);
       if (c.flags.babyBoom > 0) g *= 3;
       if (c.pop < 20) g += 0.03 * room;
       if (world.flags.sterile) g = 0;
@@ -179,10 +179,10 @@
     if (underConstruction(world, c) >= 2 + Math.floor(c.era / 2)) return;
     if (c.buildings.size >= 8 + c.pop * 1.3 + c.era * 2) return;
     const y = c.yields;
-    const housesNeeded = c.pop > y.housing * 0.8;
+    const housesNeeded = c.pop > y.housing * 0.7;
     const options = [];
     const hType = C.HOUSING[c.era];
-    if (housesNeeded) options.push({ t: hType, s: 10 + (c.pop - y.housing * 0.8) * 0.3 });
+    if (housesNeeded) options.push({ t: hType, s: 10 + (c.pop - y.housing * 0.7) * 0.3 });
     const consumption = c.pop * FOOD_PER_POP;
     if (y.food < consumption * 1.35 || c.food < c.pop) {
       options.push({ t: 'farm', s: 9 });

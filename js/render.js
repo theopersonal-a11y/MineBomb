@@ -573,6 +573,7 @@
           const label = `${MB.Civs.ERA_ICONS[c.era]} ${name}${wars ? ' ⚔' : ''}${c.plague ? ' ☣' : ''}`;
           ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.strokeText(label, sx, sy);
           ctx.fillStyle = c.color; ctx.fillText(label, sx, sy);
+          try { const img = MB.Civs.flagImg(c); if (img && img.complete && img.width) { const fw = Math.max(12, 6 * z), fh = fw * 2 / 3; ctx.drawImage(img, sx - ctx.measureText(label).width / 2 - fw - 4, sy - fh, fw, fh); } } catch (e) { /* ignore */ }
           ctx.font = `${Math.max(9, fs - 3)}px monospace`;
           const sub = `pop ${U.fmt(c.pop)}`;
           ctx.strokeText(sub, sx, sy + fs); ctx.fillStyle = '#eee'; ctx.fillText(sub, sx, sy + fs);

@@ -97,6 +97,28 @@
   for (const k in B) { const bd = B[k]; if (bd.science) bd.science *= 0.5; if (bd.buildTime === 1) bd.buildTime = U.clamp(bd.hp / 70, 1, 10); if (bd.cat === 'house') for (const c in bd.cost) bd.cost[c] = Math.round(bd.cost[c] * 1.5); }
   const WONDERS = Object.keys(B).filter((k) => B[k].wonder);
 
+  const FLAG_CACHE = {};
+  function flagDataURL(c) {
+    const key = c.id + ':' + c.color + ':' + c.gov;
+    if (FLAG_CACHE[key]) return FLAG_CACHE[key];
+    const cv = document.createElement('canvas'); cv.width = 12; cv.height = 8;
+    const ctx = cv.getContext('2d');
+    const rng = new U.RNG(U.hashStr(c.name + c.id));
+    const c2 = U.pick.call(null, [U.shade(c.color, -70), '#ffffff', '#111111', U.hslToHex((parseInt(c.color.slice(1), 16) % 360 + 180) % 360, 0.8, 0.5)]);
+    const style = rng.int(0, 5);
+    ctx.fillStyle = c.color; ctx.fillRect(0, 0, 12, 8);
+    ctx.fillStyle = c2;
+    if (style === 0) ctx.fillRect(0, 3, 12, 2); // band
+    else if (style === 1) ctx.fillRect(5, 0, 2, 8); // vertical
+    else if (style === 2) { for (let i = 0; i < 8; i++) ctx.fillRect(i, i, 1, 1); for (let i = 0; i < 8; i++) ctx.fillRect(7 - i, i, 1, 1); } // cross
+    else if (style === 3) { ctx.fillRect(4, 2, 4, 4); ctx.fillStyle = c.color; ctx.fillRect(5, 3, 2, 2); } // ring
+    else if (style === 4) { ctx.fillRect(0, 0, 6, 4); ctx.fillRect(6, 4, 6, 4); } // quarters
+    else { ctx.fillRect(2, 1, 1, 1); ctx.fillRect(4, 3, 1, 1); ctx.fillRect(6, 1, 1, 1); ctx.fillRect(8, 3, 1, 1); ctx.fillRect(3, 5, 1, 1); ctx.fillRect(7, 5, 1, 1); } // stars
+    const url = cv.toDataURL();
+    FLAG_CACHE[key] = url;
+    return url;
+  }
+  function flagImg(c) { if (!c._flagImg || c._flagKey !== c.color + c.gov) { const img = new Image(); img.src = flagDataURL(c); c._flagImg = img; c._flagKey = c.color + c.gov; } return c._flagImg; }
   function fullName(c) {
     const n = c.name;
     switch (c.gov) {
@@ -482,7 +504,7 @@
 
   MB.Civs = {
     ERAS, ERA_ICONS, ERA_COST, ERA_POP, HOUSING, GOVS_BY_ERA, TRAITS, COLORS, BUILDINGS: B, WONDERS,
-    fullName, newLeader, makeCiv, found, foundColony, refreshTileArr, canAfford, pay, build, completeBuilding,
+    flagDataURL, flagImg, fullName, newLeader, makeCiv, found, foundColony, refreshTileArr, canAfford, pay, build, completeBuilding,
     rel, changeRelation, declareWar, makePeace, ally, captureTile, captureCapital, killCiv, setEra, plague,
     countBuildings, leaderDied, grantWish, hasBuilding, buildSomewhere, findSite, siteOk, serialize, deserialize,
   };

@@ -198,7 +198,7 @@
       if (!this.settings.creative) this.power = Math.max(0, this.power - ab.cost);
       w.playerStats.uses++;
       w.playerStats.abilities[ab.id] = (w.playerStats.abilities[ab.id] || 0) + 1;
-      if (ab.cat === 'Tools') { /* no log */ } else if (ab.mode !== 'paint' && Math.random() < 0.15 && ab.cost >= 20) w.addLog(`The gods used ${ab.name}.`, 'player', x | 0, y | 0);
+      if (ab.cat === 'Tools') { /* no log */ } else if (ab.mode !== 'paint' && Math.random() < 0.15 && ab.cost >= 20) w.addLog(`${this.settings.godName || 'The gods'} used ${ab.name}.`, 'player', x | 0, y | 0);
       if (MB.audio && ab.mode !== 'paint') MB.audio.play('click');
       return true;
     }

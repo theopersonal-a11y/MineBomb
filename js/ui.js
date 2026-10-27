@@ -212,7 +212,7 @@
       tbl.appendChild(head);
       for (const c of alive) {
         const tr = U.el('tr');
-        tr.appendChild(U.el('td', { html: `<span class="swatch" style="background:${c.color}"></span>${esc(C.fullName(c))}` }));
+        tr.appendChild(U.el('td', { html: `<img src="${C.flagDataURL(c)}" width="18" height="12" style="image-rendering:pixelated;vertical-align:middle;margin-right:4px;border:1px solid #000">${esc(C.fullName(c))}` }));
         tr.appendChild(U.el('td', { text: `${C.ERA_ICONS[c.era]} ${C.ERAS[c.era]}` }));
         tr.appendChild(U.el('td', { text: U.fmt(c.pop) }));
         tr.appendChild(U.el('td', { html: `<span class="minibar"><div style="width:${c.happiness}%;background:${c.happiness > 50 ? '#4caf50' : c.happiness > 25 ? '#ffd93d' : '#e63946'}"></div></span>` }));
@@ -259,7 +259,7 @@
       if (ins.type === 'civ') {
         const c = ins.civ;
         if (!c.alive) { box.appendChild(U.el('h3', { text: `${C.fullName(c)} (fallen)` })); box.appendChild(closeBtn); return; }
-        const h = U.el('h3', { html: `<span><span class="swatch" style="background:${c.color}"></span>${esc(C.fullName(c))}</span>` }); h.appendChild(closeBtn); box.appendChild(h);
+        const h = U.el('h3', { html: `<span><img src="${C.flagDataURL(c)}" width="24" height="16" style="image-rendering:pixelated;vertical-align:middle;margin-right:6px;border:1px solid #000">${esc(C.fullName(c))}</span>` }); h.appendChild(closeBtn); box.appendChild(h);
         box.appendChild(U.el('div', { class: 'small', text: `${C.ERA_ICONS[c.era]} ${C.ERAS[c.era]} · ${c.gov} · ${c.leader.title} ${c.leader.name}${c.religion ? ' · worships ' + c.religion : ''}` }));
         box.appendChild(U.el('div', { class: 'small', text: `Traits: ${c.traits.join(', ')} · Founded year ${Math.floor(c.founded / MB.World.DAY_TICKS / 20) + 1}` }));
         const y = c.yields || {};
@@ -342,6 +342,7 @@
       const kinds = ['all', 'war', 'peace', 'civ', 'disaster', 'good', 'bad', 'death', 'world', 'player'];
       const tabs = U.el('div', { class: 'tabs' });
       for (const k of kinds) tabs.appendChild(U.el('div', { class: 'tab' + (this.logFilter === k ? ' active' : ''), text: k, onclick: () => { this.logFilter = k; this.renderLog(); } }));
+      tabs.appendChild(U.el('button', { class: 'tbtn', text: '📤 Export chronicle', onclick: () => { U.downloadText(`${w.name.replace(/\W+/g, '_')}_chronicle.txt`, w.log.map((e) => `Year ${e.year} Day ${e.day % 20 + 1}: ${e.text}`).join('\n'), 'text/plain'); } }));
       mc.appendChild(tabs);
       const list = U.el('div', { class: 'log-list' });
       const items = w.log.filter((e) => this.logFilter === 'all' || e.kind === this.logFilter).slice().reverse();
@@ -363,6 +364,20 @@
       tile('Animals', animals); tile('Monsters', monsters); tile('Fires burning', w.burning.size); tile('Lava tiles', w.lavaSet.size); tile('Global pollution', `${Math.round(w.globalPollution() * 100)}%`); tile('Weather', w.weather.type);
       tile('Abilities used', U.fmt(w.playerStats.uses)); tile('Bombs dropped', U.fmt(w.playerStats.bombs)); tile('Creatures spawned', U.fmt(w.playerStats.spawns)); tile('Kills by you', U.fmt(w.playerStats.kills)); tile('Rain clouds', U.fmt(w.playerStats.rains)); tile('Unique abilities used', Object.keys(w.playerStats.abilities).length + ' / ' + A.list.length);
       mc.appendChild(grid);
+      mc.appendChild(U.el('h4', { text: 'Time-lapse: the history of the world' }));
+      if (w.frames && w.frames.length > 1) {
+        const tl = U.el('div', { class: 'row' });
+        const tcv = U.el('canvas', { width: w.w * 3, height: w.h * 3, style: 'max-width:100%;image-rendering:pixelated;background:#000;border:2px solid var(--border)' });
+        const slider = U.el('input', { type: 'range', min: 0, max: w.frames.length - 1, value: w.frames.length - 1, style: 'flex:1;min-width:200px' });
+        const lbl = U.el('span', { class: 'small' });
+        const draw = (idx) => { const f = w.frames[idx]; if (!f) return; const ctx2 = tcv.getContext('2d'); const img = ctx2.createImageData(w.w, w.h); const d = new Uint32Array(img.data.buffer); const cols = [0xff5a2a0b, 0xff3cab5c, 0xff72868d, 0xff2a7a2e, 0xff005aff]; for (let i = 0; i < w.n; i++) { let c = cols[f.cls[i]]; const o = f.owner[i]; if (o >= 0 && w.civs[o]) { const [r, g2, b] = U.hexToRgb(w.civs[o].color); c = (255 << 24) | (b << 16) | (g2 << 8) | r; } d[i] = c; } const tmp = document.createElement('canvas'); tmp.width = w.w; tmp.height = w.h; tmp.getContext('2d').putImageData(img, 0, 0); ctx2.imageSmoothingEnabled = false; ctx2.drawImage(tmp, 0, 0, tcv.width, tcv.height); lbl.textContent = `Year ${f.year}, day ${f.day % 20 + 1} · population ${U.fmt(f.pop)} (${idx + 1}/${w.frames.length})`; };
+        slider.oninput = () => draw(+slider.value);
+        let timer = null;
+        const play = U.el('button', { class: 'tbtn', text: '▶ Play', onclick: () => { if (timer) { clearInterval(timer); timer = null; play.textContent = '▶ Play'; return; } let i = +slider.value >= w.frames.length - 1 ? 0 : +slider.value; play.textContent = '⏸ Stop'; timer = setInterval(() => { if (this.panel !== 'stats') { clearInterval(timer); timer = null; return; } slider.value = i; draw(i); i++; if (i >= w.frames.length) { clearInterval(timer); timer = null; play.textContent = '▶ Play'; } }, 120); } });
+        tl.appendChild(play); tl.appendChild(slider); tl.appendChild(lbl);
+        mc.appendChild(tl); mc.appendChild(tcv);
+        draw(w.frames.length - 1);
+      } else mc.appendChild(U.el('div', { class: 'small', text: 'A frame is recorded every day. Come back after a few days to replay history.' }));
       mc.appendChild(U.el('h4', { text: 'Population over time' }));
       const cv = U.el('canvas', { width: 900, height: 220, style: 'width:100%;max-width:900px;background:#000;border:2px solid var(--border)' });
       mc.appendChild(cv);
@@ -409,6 +424,7 @@
       check('crt', 'CRT scanlines', (v) => document.body.classList.toggle('crt', v));
       check('bigUI', 'Bigger UI text', (v) => document.body.classList.toggle('big-ui', v));
       check('confirmDangerous', 'Confirm world-ending abilities');
+      const gn = U.el('label'); gn.appendChild(U.el('span', { text: 'Your divine name (appears in the chronicle)' })); const gi = U.el('input', { type: 'text', value: s.godName || '', placeholder: 'The gods', maxlength: 24 }); gi.onchange = () => { s.godName = gi.value.trim(); g.saveSettings(); }; gn.appendChild(gi); grid.appendChild(gn);
       const auto = U.el('label'); auto.appendChild(U.el('span', { text: 'Autosave interval (seconds, 0 = off)' })); const ai = U.el('input', { type: 'number', min: 0, max: 600, value: s.autosave }); ai.onchange = () => { s.autosave = Math.max(0, +ai.value || 0); g.saveSettings(); }; auto.appendChild(ai); grid.appendChild(auto);
       mc.appendChild(grid);
       mc.appendChild(U.el('h4', { text: 'Data' }));
